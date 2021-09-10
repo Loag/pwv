@@ -1,0 +1,251 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model AuditEvent {
+  id String @unique @default(uuid())
+
+  user    User @relation(fields: [user_id], references: [id])
+  user_id Int
+
+  description String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id Int @id @default(autoincrement())
+
+  owner User @relation(fields: [owner_id], references: [id])
+  owner_id Int
+
+  account Account? @relation(fields: [account_id], references: [id])
+  account_id Int?
+
+  description String
+
+  problems Problem[]
+  tasks Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Problem {
+  id Int @id @default(autoincrement())
+
+  owner User @relation(fields: [owner_id], references: [id]) // this is who owns this problem
+  owner_id Int
+
+  account Account @relation(fields: [account_id], references: [id]) // this is who owns this problem
+  account_id Int
+
+  project Project? @relation(fields: [project_id], references: [id])
+  project_id Int?
+
+  issues Issue[]
+
+  tasks Task[]
+
+  description String
+
+  is_complete Boolean @default(false)
+  status issue_status @default(NEW)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Issue {
+  id Int @id @default(autoincrement())
+
+  share_url String? // internal
+
+  user    User @relation(fields: [user_id], references: [id])
+  user_id Int // external
+
+  task Task? // external
+
+  problem Problem? @relation(fields: [problem_id], references: [id])
+  problem_id Int?
+
+  description String // external
+
+  thumb_nail String // external
+  video_link String // external
+
+  lat  String // external
+  long String // external
+
+  address String? // use this for display only
+  city    String // the town the issue is in
+
+  status issue_status @default(NEW) // internal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  problemId Int?
+}
+
+enum issue_status {
+  NEW
+  COMPLETE
+}
+
+model Task {
+  id Int @id @default(autoincrement())
+
+  user    User @relation(fields: [user_id], references: [id])
+  user_id Int
+
+  issue    Issue? @relation(fields: [issue_id], references: [id])
+  issue_id Int?
+
+  // can be part of an issue, problem, or project
+  problem Problem? @relation(fields: [problem_id], references: [id])
+  problem_id Int?
+
+  project Project? @relation(fields: [project_id], references: [id])
+  project_id Int?
+
+  task_notes Task_Note[]
+
+  is_completed Boolean @default(false)
+
+  time Int @default(0)
+
+  status task_status @default(NEW)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum task_status {
+  NEW
+  COMPLETE
+}
+
+model Task_Note {
+  id Int @id @default(autoincrement())
+
+  user    User @relation(fields: [user_id], references: [id])
+  user_id Int
+
+  task    Task @relation(fields: [task_id], references: [id])
+  task_id Int
+
+  attachments Attachment[]
+
+  text String
+
+  time Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attachment {
+  id Int @id @default(autoincrement())
+
+  task_note    Task_Note @relation(fields: [task_note_id], references: [id])
+  task_note_id Int
+
+  url  String
+  type attachment_type
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum attachment_type {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+// an account must always be connected to a user
+model Account {
+  id         Int    @id @default(autoincrement())
+  account_id String @unique @default(uuid())
+
+  name    String @unique
+  address String
+  city    String // this is what is going to be used to tag issues, not ideal
+  users   User[] // account can have many users
+
+  projects Project[]
+  problems Problem[]
+  // admin_user User?
+  is_verified Boolean @default(true)
+  is_active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Group {
+  id    Int     @id @default(autoincrement())
+  name  String?
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id      Int    @id @default(autoincrement())
+  user_id String @unique @default(uuid())
+
+  internal_id String @unique // this is from auth0
+
+  account    Account? @relation(fields: [account_id], references: [id]) // users belong to one account
+  account_id Int?
+
+  groups Group[]
+
+  role roles
+
+  name        String
+  email       String @unique
+  phoneNumber String @unique
+
+  image String?
+
+  address String? // this is going to be zip
+
+  zip String? // the zip code of where the user lives, use this not address
+
+  issues Issue[] // a user has many issues 
+
+  problems Problem[] // a user has many problems
+
+  projects Project[] // a user has many projects
+
+  tasks      Task[] // a user has many tasks
+  task_notes Task_Note[]
+
+  accepted_tos     Boolean? // need to fix this for prod
+  accepted_privacy Boolean? // need to fix this for prod
+  is_over_thirteen Boolean?
+
+  auditEvents AuditEvent[] // everything the user does in the system
+
+  last_login DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum roles {
+  RESIDENT
+  EMPLOYEE
+}

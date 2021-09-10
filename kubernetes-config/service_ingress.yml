@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ${INGRESS_NAME}
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - ${APP_ROUTE}
+    secretName: residentvision-tls
+  rules:
+  - host: ${APP_ROUTE}
+    http:
+      paths:
+      - backend:
+          serviceName: ${SERVICE_NAME}
+          servicePort: 80
